@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using SPTarkovLauncher.Config;
 
 namespace SPTarkovLauncher;
 
@@ -15,21 +14,25 @@ internal static class Program
     private const string ServerFileName = "Aki.Server.exe";
     private const string TarkovProcessName = "EscapeFromTarkov";
 
-    private static readonly IConfigManager Config = new RegistryConfigManager(@"Software\SPTarkovLauncher");
-
     public static async Task Main(string[] args)
     {
         try
         {
-            await Worker();
+            await ExecuteProgramLogic();
         }
+        catch (FileNotFoundException e)
+        {
+            Console.WriteLine("Please ensure SPTarkovLauncher is placed in your SPTarkov folder.");
+            DisplayException(e);
+        }
+        // Ensure any unexpected errors are displayed to the user.
         catch (Exception e)
         {
             DisplayException(e);
         }
     }
 
-    private static async Task Worker()
+    private static async Task ExecuteProgramLogic()
     {
         // Focus existing Tarkov instance and exit.
         if (ProcessHelper.TryGet(TarkovProcessName, out Process tarkovProcess))
@@ -39,7 +42,7 @@ internal static class Program
             return;
         }
 
-        string spTarkovPath = GetInstallationPath();
+        AssertCorrectDirectory();
         bool isLauncherRunning = ProcessHelper.TryGet(LauncherProcess, out Process launcherProcess);
         bool isServerRunning = ProcessHelper.IsRunning(ServerProcess);
 
@@ -54,7 +57,7 @@ internal static class Program
         // Start the launcher for use with the existing server instance.
         if (isServerRunning)
         {
-            ProcessHelper.Launch(spTarkovPath, LauncherFileName);
+            ProcessHelper.LaunchFromWorkingDirectory(LauncherFileName);
             return;
         }
 
@@ -64,84 +67,45 @@ internal static class Program
             ProcessHelper.Close(LauncherProcess);
         }
 
-        ProcessHelper.Launch(spTarkovPath, ServerFileName);
+        ProcessHelper.LaunchFromWorkingDirectory(ServerFileName);
 
+        // TODO: Read server output until "server is running".
         // Allow time for the server to spin up.
         await Task.Delay(3000);
 
-        ProcessHelper.Launch(spTarkovPath, LauncherFileName);
+        ProcessHelper.LaunchFromWorkingDirectory(LauncherFileName);
     }
 
     private static void DisplayException(Exception e)
     {
-        Console.WriteLine();
-        Console.WriteLine("An error occurred");
         Console.WriteLine($"{e.GetType()}: {e.Message}");
         Console.WriteLine("Press 'e' for extended error information, or any other key to exit.");
-            
-        if (Console.ReadKey().KeyChar is 'e')
+
+        if (Console.ReadKey(true).KeyChar is 'e')
         {
             Console.WriteLine();
             Console.WriteLine(e);
-                
+
             Console.WriteLine();
             Console.WriteLine("Press any key to exit");
-            Console.ReadKey();
+            Console.ReadKey(true);
         }
     }
 
-    private static string GetInstallationPath()
+    private static void AssertCorrectDirectory()
     {
-        throw new FileNotFoundException("asd.e");
-        if (Config.Load(ConfigKeys.SPTarkovPath, out string path) && IsValidDirectory(path))
-        {
-            return path;
-        }
-
-        path = QueryUserForInstallationPath();
-        Config.Save(ConfigKeys.SPTarkovPath, path);
-        return path;
-    }
-
-    private static string QueryUserForInstallationPath()
-    {
-        string path;
-        do
-        {
-            Console.WriteLine("Please enter the path to your SPTarkov installation");
-            Console.WriteLine(@"e.g. C:\Games\SPTarkov");
-            Console.Write("Path: ");
-            path = Console.ReadLine();
-            Console.WriteLine();
-        } while (!IsValidDirectory(path));
-
-        return path;
-    }
-
-    private static bool IsValidDirectory(string spTarkovPath)
-    {
-        if (!Directory.Exists(spTarkovPath))
-        {
-            Console.WriteLine($"Directory doesn't exist: \"{spTarkovPath}\"");
-            return false;
-        }
-
         string[] requiredFileNames = [LauncherFileName, ServerFileName];
-        string[] actualFileNames = new DirectoryInfo(spTarkovPath)
+        string[] actualFileNames = new DirectoryInfo(Directory.GetCurrentDirectory())
             .GetFiles()
             .Select(x => x.Name)
             .ToArray();
-
 
         foreach (string required in requiredFileNames)
         {
             if (!actualFileNames.Contains(required))
             {
-                Console.WriteLine($"File doesn't exist: \"{required}\"");
-                return false;
+                throw new FileNotFoundException($"Missing file \"{required}\".");
             }
         }
-
-        return true;
     }
 }

@@ -47,12 +47,11 @@ internal static class ProcessHelper
 
     public static bool IsRunning(string processName) => TryGet(processName, out _);
 
-    public static void Launch(string directory, string filename)
+    public static void LaunchFromWorkingDirectory(string filename)
     {
         ProcessStartInfo startInfo = new ProcessStartInfo()
         {
-            WorkingDirectory = directory,
-            FileName = Path.Combine(directory, filename)
+            FileName = Path.Combine(filename)
         };
 
         Console.WriteLine($"Running {filename}.");
