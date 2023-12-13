@@ -25,20 +25,7 @@ internal static class Program
         }
         catch (Exception e)
         {
-            Console.WriteLine();
-            Console.WriteLine("An error occurred");
-            Console.WriteLine(e.Message);
-            Console.WriteLine("Press 'e' for extended error information, or any other key to exit.");
-            
-            if (Console.ReadKey().KeyChar is 'e')
-            {
-                Console.WriteLine();
-                Console.WriteLine(e.StackTrace);
-                
-                Console.WriteLine();
-                Console.WriteLine("Press any key to exit");
-                Console.ReadKey();
-            }
+            DisplayException(e);
         }
     }
 
@@ -85,8 +72,27 @@ internal static class Program
         ProcessHelper.Launch(spTarkovPath, LauncherFileName);
     }
 
+    private static void DisplayException(Exception e)
+    {
+        Console.WriteLine();
+        Console.WriteLine("An error occurred");
+        Console.WriteLine($"{e.GetType()}: {e.Message}");
+        Console.WriteLine("Press 'e' for extended error information, or any other key to exit.");
+            
+        if (Console.ReadKey().KeyChar is 'e')
+        {
+            Console.WriteLine();
+            Console.WriteLine(e);
+                
+            Console.WriteLine();
+            Console.WriteLine("Press any key to exit");
+            Console.ReadKey();
+        }
+    }
+
     private static string GetInstallationPath()
     {
+        throw new FileNotFoundException("asd.e");
         if (Config.Load(ConfigKeys.SPTarkovPath, out string path) && IsValidDirectory(path))
         {
             return path;
